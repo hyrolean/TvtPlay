@@ -151,9 +151,16 @@ private:
 class lock_recursive_mutex
 {
 public:
-    lock_recursive_mutex(recursive_mutex_ &mtx) : m_mtx(mtx) { m_mtx.lock(); }
-    ~lock_recursive_mutex() { m_mtx.unlock(); }
+    lock_recursive_mutex(recursive_mutex_ &mtx) : m_mtx(mtx), locking(false) { lock();  }
+    ~lock_recursive_mutex() { unlock(); }
+    void lock() {
+      if(!locking) { m_mtx.lock(); locking = true ; }
+    }
+    void unlock() {
+      if(locking) { m_mtx.unlock(); locking = false ; }
+    }
 private:
+    bool locking;
     lock_recursive_mutex(const lock_recursive_mutex&);
     lock_recursive_mutex &operator=(const lock_recursive_mutex&);
     recursive_mutex_ &m_mtx;

@@ -24,6 +24,7 @@ private:
     IReadOnlyFile *m_file;
     HANDLE m_hThread;
     HANDLE m_hThreadEvent;
+    HANDLE m_hFileSizeEvent;
     bool m_fStop;
     bool m_fRead;
     std::list<std::vector<BYTE>> m_queue;
@@ -32,6 +33,7 @@ private:
     int m_bufPreSize;
     __int64 m_fileSize;
     mutable recursive_mutex_ m_lock;
+    recursive_mutex_ m_lockRead;
 };
 
 #endif // INCLUDE_BUFFERED_FILE_READER_H

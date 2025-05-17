@@ -382,7 +382,7 @@ void CTvtPlay::LoadSettings()
         m_fSingleRepeat     = GetBufferedProfileInt(pBuf, TEXT("TsRepeatSingle"), 0) != 0;
         m_fRepeatChapter    = GetBufferedProfileInt(pBuf, TEXT("TsRepeatChapter"), 0) != 0;
         m_fSkipXChapter     = GetBufferedProfileInt(pBuf, TEXT("TsSkipXChapter"), 0) != 0;
-        m_readBufSizeKB     = GetBufferedProfileInt(pBuf, TEXT("TsReadBufferSizeKB"), 2048);
+        m_readBufSizeKB     = GetBufferedProfileInt(pBuf, TEXT("TsReadBufferSizeKB"), 16384);
         m_supposedDispDelay = GetBufferedProfileInt(pBuf, TEXT("TsSupposedDispDelay"), 500);
         m_supposedDispDelay = min(max(m_supposedDispDelay, 0), 5000);
         // m_resetMode == 0:ビューアRS, 1:全体RS, 2:空PAT+ビューアRS, 3:空PAT, 4:何もしない
