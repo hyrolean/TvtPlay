@@ -19,12 +19,17 @@ public:
     __int64 GetFilePosition() const;
     __int64 GetFileSize() const;
     int GetBufferSize() const { return m_hThread ? static_cast<int>(m_queue.size() - 1) * m_bufSize : 0; }
+    void SuspendReadIn() ;
+    void ResumeReadIn() ;
+    bool ReadyReadIn() const { return m_fRead; }
+    void OrderReadIn() ;
 private:
     static unsigned int __stdcall ReadThread(void *pParam);
     IReadOnlyFile *m_file;
     HANDLE m_hThread;
     HANDLE m_hThreadEvent;
     HANDLE m_hFileSizeEvent;
+    HANDLE m_hReadInEvent;
     bool m_fStop;
     bool m_fRead;
     std::list<std::vector<BYTE>> m_queue;
@@ -33,7 +38,7 @@ private:
     int m_bufPreSize;
     __int64 m_fileSize;
     mutable recursive_mutex_ m_lock;
-    recursive_mutex_ m_lockRead;
+    mutable recursive_mutex_ m_lockRead;
 };
 
 #endif // INCLUDE_BUFFERED_FILE_READER_H

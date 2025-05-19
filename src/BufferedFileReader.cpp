@@ -34,6 +34,7 @@ bool CBufferedFileReader::SetupBuffer(int bufSize, int bufPreSize, int bufNum)
         ::CloseHandle(m_hThread);
         ::CloseHandle(m_hThreadEvent);
         if(m_hFileSizeEvent) ::CloseHandle(m_hFileSizeEvent);
+        if(m_hReadInEvent) ::CloseHandle(m_hReadInEvent);
         m_hThread = nullptr;
     }
     m_queue.clear();
@@ -49,6 +50,7 @@ bool CBufferedFileReader::SetupBuffer(int bufSize, int bufPreSize, int bufNum)
         m_fRead = false;
         m_hThreadEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
         m_hFileSizeEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
+        m_hReadInEvent = ::CreateEvent(nullptr, FALSE, FALSE, nullptr);
         if (m_hThreadEvent) {
             m_fStop = false;
             m_hThread = reinterpret_cast<HANDLE>(::_beginthreadex(nullptr, 0, ReadThread, this, 0, nullptr));
@@ -146,6 +148,38 @@ __int64 CBufferedFileReader::GetFileSize() const
     return -1;
 }
 
+void CBufferedFileReader::SuspendReadIn()
+{
+    m_lockRead.lock();
+    m_lock.lock();
+}
+
+void CBufferedFileReader::ResumeReadIn()
+{
+    m_lock.unlock();
+    m_lockRead.unlock();
+}
+
+void CBufferedFileReader::OrderReadIn()
+{
+    if (m_hThread) {
+        if(m_hThreadEvent) {
+          bool wait = false ;
+          if(!m_fRead) {
+            m_fRead = true ;
+            if(m_hReadInEvent) {
+              ::ResetEvent(m_hReadInEvent);
+              wait = true ;
+            }
+          }
+          ::SetEvent(m_hThreadEvent);
+          if(wait) {
+            ::WaitForSingleObject(m_hReadInEvent,3000);
+          }
+        }
+    }
+}
+
 unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
 {
     CBufferedFileReader &this_ = *static_cast<CBufferedFileReader*>(pParam);
@@ -174,10 +208,12 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                         (this_.m_tail++)->resize(this_.m_bufPreSize + numRead);
                         if (numRead > 0) {
                             //::SetEvent(this_.m_hThreadEvent);
+                            if(this_.m_hReadInEvent) ::SetEvent(this_.m_hReadInEvent);
                             continue ;
                         }
                     }
                 }
+                if(this_.m_hReadInEvent) ::SetEvent(this_.m_hReadInEvent);
                 break;
             }
             break;
@@ -186,7 +222,8 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                 // Linux Samba 環境で上記の読込処理中にCBufferedFileReader::GetFileSizeﾒﾝﾊﾞ関数が
                 // m_file->GetSizeをｺｰﾙすると酷くもたつくことがある為、ｺｺでﾌｧｲﾙｻｲｽﾞの更新を行う
                 // ( Debian Jessie + Samba + ASM1153 usb storage 環境の NanoPI NEO 2 ｻｰﾊﾞｰに.tsﾌｧｲﾙを置いた状態で検証済 )
-                this_.m_fileSize = this_.m_file->GetSize();
+                if((size_t)std::distance(this_.m_queue.begin(),this_.m_tail)>=this_.m_queue.size()/2)
+                    this_.m_fileSize = this_.m_file->GetSize();
             }
             break;
         }

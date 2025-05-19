@@ -71,6 +71,7 @@ private:
     DWORD GetAdjTickCount();
     bool ReadToPcr(bool fSend, bool fSyncRead);
     void RotateBuffer(bool fSend, bool fSyncRead);
+    bool SeekSandBox(int msec);
     bool Seek(__int64 distanceToMove, IReadOnlyFile::MOVE_METHOD moveMethod);
     bool SeekToBoundary(__int64 predicted, __int64 range, BYTE *pWork, int workSize);
     void OpenSocket();
@@ -117,6 +118,7 @@ private:
 
     DWORD m_adjBaseTick;
     __int64 m_adjFreq, m_adjBase;
+
 };
 
 #endif // INCLUDE_TS_SENDER_H

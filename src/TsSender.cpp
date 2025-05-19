@@ -615,11 +615,41 @@ bool CTsSender::Seek(int msec)
 {
     if (!m_fEnPcr) return SeekToBegin();
 
-    // 受信側のストアをパージ
-    if (!m_fPause) TransactMessage(TEXT("PURGE"));
-    else Pause(true, true);
+    bool result = false;
 
+    // 先読みを先に停止しておく
+    m_reader.SuspendReadIn();
+    bool ready = m_reader.ReadyReadIn();
     m_reader.Flush();
+
+    __try {
+
+        // 受信側のストアをパージ
+        if (!m_fPause) TransactMessage(TEXT("PURGE"));
+        else Pause(true, true);
+
+        result = SeekSandBox(msec);
+
+    }
+    __finally {
+
+        // 先読みを再開
+        m_reader.ResumeReadIn();
+
+    }
+
+    if(ready) {
+
+      // 先読みをひとつ進める
+      m_reader.OrderReadIn();
+
+    }
+
+    return result;
+}
+
+bool CTsSender::SeekSandBox(int msec)
+{
     __int64 rate = GetRate();
     __int64 size = m_reader.GetFileSize();
     __int64 pos = m_reader.GetFilePosition();
@@ -688,7 +718,6 @@ bool CTsSender::Seek(int msec)
     }
     return true;
 }
-
 
 // 一時停止する
 // !fPurgeのとき転送先がPAUSE命令に応答すればパージを省略する
