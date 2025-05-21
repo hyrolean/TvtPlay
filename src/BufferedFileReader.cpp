@@ -183,6 +183,7 @@ void CBufferedFileReader::OrderReadIn()
 unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
 {
     CBufferedFileReader &this_ = *static_cast<CBufferedFileReader*>(pParam);
+    bool lts = false ;
     for (;;) {
         HANDLE handles[2];
         handles[0]=this_.m_hThreadEvent;
@@ -212,6 +213,7 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                             continue ;
                         }
                     }
+                    lts = numRead < this_.m_bufSize ;
                 }
                 if(this_.m_hReadInEvent) ::SetEvent(this_.m_hReadInEvent);
                 break;
@@ -222,8 +224,10 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                 // Linux Samba 環境で上記の読込処理中にCBufferedFileReader::GetFileSizeﾒﾝﾊﾞ関数が
                 // m_file->GetSizeをｺｰﾙすると酷くもたつくことがある為、ｺｺでﾌｧｲﾙｻｲｽﾞの更新を行う
                 // ( Debian Jessie + Samba + ASM1153 usb storage 環境の NanoPI NEO 2 ｻｰﾊﾞｰに.tsﾌｧｲﾙを置いた状態で検証済 )
-                if((size_t)std::distance(this_.m_queue.begin(),this_.m_tail)>=this_.m_queue.size()/2)
+                if(lts||(size_t)std::distance(this_.m_queue.begin(),this_.m_tail)>=this_.m_queue.size()/2) {
                     this_.m_fileSize = this_.m_file->GetSize();
+                    lts = false ;
+                }
             }
             break;
         }
