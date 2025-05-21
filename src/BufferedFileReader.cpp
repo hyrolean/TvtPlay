@@ -205,6 +205,7 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                     locker.unlock();
                     int numRead = this_.m_file->Read(&(*this_.m_tail)[this_.m_bufPreSize], this_.m_bufSize);
                     if (numRead >= 0) {
+                        lts = numRead < this_.m_bufSize ;
                         locker.lock();
                         (this_.m_tail++)->resize(this_.m_bufPreSize + numRead);
                         if (numRead > 0) {
@@ -213,8 +214,8 @@ unsigned int __stdcall CBufferedFileReader::ReadThread(void *pParam)
                             continue ;
                         }
                     }
-                    lts = numRead < this_.m_bufSize ;
                 }
+                lts = true ;
                 if(this_.m_hReadInEvent) ::SetEvent(this_.m_hReadInEvent);
                 break;
             }
