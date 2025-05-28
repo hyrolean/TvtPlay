@@ -596,8 +596,6 @@ bool CTsSender::SeekToEnd()
     if (!m_fPause) TransactMessage(TEXT("PURGE"));
     else Pause(true, true);
 
-    m_reader.Flush();
-
     CReadOnlyMpeg4File *mpeg4File = dynamic_cast<CReadOnlyMpeg4File*>(m_file.get());
     if (mpeg4File) {
         // 時間ベースでシークできる
@@ -620,7 +618,7 @@ bool CTsSender::Seek(int msec)
     // 先読みを先に停止しておく
     m_reader.SuspendReadIn();
     bool ready = m_reader.ReadyReadIn();
-    m_reader.Flush();
+    //m_reader.Flush();
 
     __try {
 
@@ -706,7 +704,7 @@ bool CTsSender::SeekSandBox(int msec)
     int nextMsec = msec;
     while (nextMsec > INITIAL_STORE_MSEC) {
         m_fEnPcr = false;
-        if (nextMsec > msec || !ReadToPcr(false, true)) {
+        if (nextMsec > msec || !ReadToPcr(false, !m_reader.ReadyReadIn()/*true*/)) {
             Seek(pos, IReadOnlyFile::MOVE_METHOD_BEGIN);
             return false;
         }
@@ -1002,19 +1000,18 @@ void CTsSender::RotateBuffer(bool fSend, bool fSyncRead)
 // シーク後、最初のPCRの位置まで読むことができればtrueを返す
 bool CTsSender::Seek(__int64 distanceToMove, IReadOnlyFile::MOVE_METHOD moveMethod)
 {
-    m_reader.Flush();
     __int64 lastPos = m_reader.GetFilePosition();
     if (lastPos < 0) return false;
 
     // 同期済みのファイルがなるべく同期済みのままになるよう移動量をパケット単位にする
     __int64 moveUnits = distanceToMove < 0 ? -(-distanceToMove / m_unitSize) : distanceToMove / m_unitSize;
-    if (m_file->SetPointer(moveUnits * m_unitSize, moveMethod) < 0) return false;
+    if (m_reader.Seek(moveUnits * m_unitSize, moveMethod)<0) return false;
 
     m_curr = m_head = m_tail = nullptr;
     m_fEnPcr = false;
-    if (!ReadToPcr(false, true)) {
+    if (!ReadToPcr(false, !m_reader.ReadyReadIn()/*true*/)) {
         // なるべく呼び出し前の状態に回復させるが、完全とは限らない
-        if (m_file->SetPointer(lastPos, IReadOnlyFile::MOVE_METHOD_BEGIN) >= 0) {
+        if (m_reader.Seek(lastPos, IReadOnlyFile::MOVE_METHOD_BEGIN) >= 0) {
             m_curr = m_head = m_tail = nullptr;
             m_fEnPcr = false;
             if (ReadToPcr(false, true)) {
@@ -1034,8 +1031,7 @@ bool CTsSender::Seek(__int64 distanceToMove, IReadOnlyFile::MOVE_METHOD moveMeth
 // log2(ファイルサイズ/TS_SUPPOSED_RATE)回ぐらい再帰する
 bool CTsSender::SeekToBoundary(__int64 predicted, __int64 range, BYTE *pWork, int workSize)
 {
-    m_reader.Flush();
-    if (m_file->SetPointer(predicted, IReadOnlyFile::MOVE_METHOD_BEGIN) < 0) return false;
+    if (m_reader.Seek(predicted, IReadOnlyFile::MOVE_METHOD_BEGIN) < 0) return false;
 
     if (range < TS_SUPPOSED_RATE) return true;
 

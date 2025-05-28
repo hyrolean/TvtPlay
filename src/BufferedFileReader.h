@@ -13,12 +13,13 @@ public:
     ~CBufferedFileReader();
     void SetFile(IReadOnlyFile *file);
     bool SetupBuffer(int bufSize, int bufPreSize, int bufNum);
-    void Flush();
+    void Flush(__int64 seekPos=-1);
     int Read(BYTE **ppBuf);
     int SyncRead(BYTE **ppBuf);
-    __int64 GetFilePosition() const;
+    __int64 GetFilePosition(__int64 *pSzPreserve=nullptr) const;
     __int64 GetFileSize() const;
     int GetBufferSize() const { return m_hThread ? static_cast<int>(m_queue.size() - 1) * m_bufSize : 0; }
+    __int64 Seek(__int64 seekPos, IReadOnlyFile::MOVE_METHOD moveMethod);
     void SuspendReadIn() ;
     void ResumeReadIn() ;
     bool ReadyReadIn() const { return m_fRead; }
@@ -36,7 +37,9 @@ private:
     std::list<std::vector<BYTE>>::iterator m_tail;
     int m_bufSize;
     int m_bufPreSize;
+    int m_bufPreSeek;
     __int64 m_fileSize;
+    __int64 m_filePos;
     mutable recursive_mutex_ m_lock;
     mutable recursive_mutex_ m_lockRead;
 };
